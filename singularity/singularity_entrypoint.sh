@@ -16,13 +16,14 @@
 #
 # Or exec directly:
 #   singularity exec --rocm hipcomp.sif \
-#     /opt/hip-compression-toolkit/scripts/run_benchmarks_auto.sh [OPTIONS]
+#     /opt/compression-experiments/scripts/run_benchmarks_auto.sh [OPTIONS]
 # =============================================================================
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="${HIPCOMP_ROOT:-/opt/hip-compression-toolkit}"
+SCRIPTS_ROOT="${HIPCOMP_ROOT:-/opt/arcto}"
 
 echo "=============================================="
 echo "  hipCOMP Benchmark Container"
@@ -55,4 +56,4 @@ done
 echo ""
 
 # Forward all arguments to the benchmark runner
-exec "$PROJECT_ROOT/scripts/run_benchmarks_auto.sh" "$@"
+exec "$SCRIPTS_ROOT/run_benchmarks_auto.sh" "$@"

@@ -275,8 +275,8 @@ cmd_run() {
         local run_cmd="cd $workdir && singularity run"
         
         # Bind mounts
-        run_cmd="$run_cmd --bind $workdir/testdata:/opt/hip-compression-toolkit/testdata"
-        run_cmd="$run_cmd --bind $workdir/results:/opt/hip-compression-toolkit/results"
+        run_cmd="$run_cmd --bind $workdir/testdata:/opt/arcto/testdata"
+        run_cmd="$run_cmd --bind $workdir/results:/opt/arcto/results"
         
         if [ -n "$rsf_dir" ]; then
             run_cmd="$run_cmd --bind $rsf_dir:/rsf"

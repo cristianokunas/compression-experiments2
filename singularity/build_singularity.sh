@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# Build Singularity image for hipCOMP benchmarks
+# Build Singularity image for ARCTO benchmarks
 #
 # Usage:
 #   ./scripts/build_singularity.sh [OPTIONS]
@@ -27,7 +27,7 @@ print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 # -------------------- Defaults --------------------
 GPU_ARCH="gfx942"
-BRANCH="main"
+BRANCH="devel"
 OUTPUT_NAME=""
 DEF_FILE="$PROJECT_ROOT/singularity/defhip_benchmark.def"
 FORCE=false
@@ -36,7 +36,7 @@ BUILD_MODE=""  # auto-detected: fakeroot, sudo, sudo-g5k
 # -------------------- Help --------------------
 show_help() {
     cat << 'EOF'
-Build Singularity image for hipCOMP benchmarks.
+Build Singularity image for ARCTO benchmarks.
 
 Usage: build_singularity.sh [OPTIONS]
 
@@ -44,8 +44,8 @@ OPTIONS:
     -a, --arch ARCH      GPU architecture (default: gfx942)
                          Supported: gfx942 (MI300X), gfx90a (MI210),
                                     gfx906 (MI50), gfx1100 (RX7900XT)
-    -b, --branch BRANCH  Git branch to build from (default: main)
-    -o, --output FILE    Output .sif filename (default: hipcomp_<arch>.sif)
+    -b, --branch BRANCH  Git branch to build from (default: devel)
+    -o, --output FILE    Output .sif filename (default: arcto_<arch>.sif)
     -m, --mode MODE      Build privilege mode (default: auto-detect)
                          fakeroot  - use --fakeroot (no sudo needed, e.g. PCAD UFRGS)
                          sudo      - use sudo (e.g. Grid5000 deployed nodes)
@@ -82,7 +82,7 @@ EXAMPLES:
 
 AFTER BUILDING:
     # Run benchmarks (see run_singularity.sh --help for details)
-    ./scripts/run_singularity.sh hipcomp_gfx942.sif /path/to/rsf/data
+    ./scripts/run_singularity.sh arcto_gfx942.sif /path/to/rsf/data
 EOF
 }
 
@@ -119,7 +119,7 @@ case "$GPU_ARCH" in
 esac
 
 if [ -z "$OUTPUT_NAME" ]; then
-    OUTPUT_NAME="hipcomp_${GPU_ARCH}.sif"
+    OUTPUT_NAME="arcto_${GPU_ARCH}.sif"
 fi
 
 if [ ! -f "$DEF_FILE" ]; then
@@ -142,7 +142,7 @@ fi
 # -------------------- Build --------------------
 echo ""
 echo -e "${BOLD}============================================${NC}"
-echo -e "${BOLD}  Building hipCOMP Singularity Image${NC}"
+echo -e "${BOLD}  Building ARCTO Singularity Image${NC}"
 echo -e "${BOLD}============================================${NC}"
 echo ""
 print_info "Architecture: $GPU_ARCH ($FRIENDLY)"

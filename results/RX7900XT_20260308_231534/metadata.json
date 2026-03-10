@@ -12,5 +12,5 @@
     "testdata_dir": "/data/testdata",
     "rsf_start_fraction": 0.5,
     "hostname": "lunaris",
-    "benchmark_dir": "/opt/hip-compression-toolkit/build/bin"
+    "benchmark_dir": "/opt/arcto/build/bin"
 }

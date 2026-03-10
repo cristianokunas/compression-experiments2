@@ -5,7 +5,7 @@ From: ubuntu:24.04
     # GPU architecture: gfx942 (MI300X), gfx90a (MI210), gfx906 (MI50), gfx1100 (RX 7900 XT)
     GPU_ARCH=gfx942
     # Git branch to build from
-    BRANCH=main
+    BRANCH=devel
 
 %post
     # Create standard bind mount points for host data
@@ -47,6 +47,9 @@ From: ubuntu:24.04
     BRANCH="{{ BRANCH }}"
 
     cd /opt
+    git clone https://github.com/cristianokunas/compression-experiments.git
+    
+    rm -rf /opt/hip-compression-toolkit
     git clone --branch "$BRANCH" --single-branch --depth 1 \
         https://github.com/cristianokunas/hip-compression-toolkit.git
     cd hip-compression-toolkit
@@ -64,7 +67,7 @@ From: ubuntu:24.04
         -DCMAKE_BUILD_TYPE=Release \
         -DBUILD_BENCHMARKS=ON \
         -DBUILD_TESTS=ON \
-        -DCMAKE_INSTALL_PREFIX=/opt/hipcomp \
+        -DCMAKE_INSTALL_PREFIX=/opt/arcto \
         $WAVE32_FLAG
 
     make -j$(nproc)
@@ -72,45 +75,45 @@ From: ubuntu:24.04
 
     # Verify benchmarks were built
     echo "=== Built benchmark executables ==="
-    ls -la /opt/hip-compression-toolkit/build/benchmarks/benchmark_*_chunked 2>/dev/null || \
-    ls -la /opt/hip-compression-toolkit/build/bin/benchmark_*_chunked 2>/dev/null || \
+    ls -la /opt/arcto/build/benchmarks/benchmark_*_chunked 2>/dev/null || \
+    ls -la /opt/arcto/build/bin/benchmark_*_chunked 2>/dev/null || \
     echo "WARNING: No benchmark executables found"
 
     # Clean up build artifacts to reduce image size
-    cd /opt/hip-compression-toolkit/build
+    cd /opt/arcto/build
     rm -rf CMakeFiles benchmarks/CMakeFiles src/CMakeFiles tests/CMakeFiles
     apt-get clean
     rm -rf /var/lib/apt/lists/*
 
 %environment
     export ROCM_PATH=/opt/rocm
-    export PATH=/opt/hipcomp/bin:/opt/hip-compression-toolkit/build/bin:/opt/rocm/bin:/usr/local/bin:$PATH
-    export LD_LIBRARY_PATH=/opt/hipcomp/lib:/opt/rocm/lib:/usr/local/lib:$LD_LIBRARY_PATH
-    export HIPCOMP_ROOT=/opt/hip-compression-toolkit
-    export HIPCOMP_BUILD=/opt/hip-compression-toolkit/build
-    export HIPCOMP_SCRIPTS=/opt/hip-compression-toolkit/scripts
+    export PATH=/opt/arcto/bin:/opt/arcto/build/bin:/opt/rocm/bin:/usr/local/bin:$PATH
+    export LD_LIBRARY_PATH=/opt/arcto/lib:/opt/rocm/lib:/usr/local/lib:$LD_LIBRARY_PATH
+    export ARCTO_ROOT=/opt/arcto
+    export ARCTO_BUILD=/opt/arcto/build
+    export ARCTO_SCRIPTS=/opt/compression-experiments/scripts
 
 %runscript
-    exec /opt/hip-compression-toolkit/scripts/singularity_entrypoint.sh "$@"
+    exec /opt/compression-experiments/scripts/singularity_entrypoint.sh "$@"
 
 %help
-    hipCOMP Benchmark Container
+    ARCTO Benchmark Container
     ============================
-    Pre-built with ROCm + hipcomp benchmarks (LZ4, Snappy, Cascaded).
+    Pre-built with ROCm + ARCTO benchmarks (LZ4, Snappy, Cascaded).
 
     Quick usage:
-      singularity run --rocm --bind /path/to/rsf/run:/data/rsf hipcomp.sif -r /data/rsf
+        singularity run --rocm --bind /path/to/rsf/run:/data/rsf arcto.sif -r /data/rsf
 
     Or with custom output:
-      singularity run --rocm \
-        --bind /path/to/rsf/run:/data/rsf \
-        --bind ./my_results:/data/results \
-        hipcomp.sif -r /data/rsf -o /data/results
+        singularity run --rocm \
+            --bind /path/to/rsf/run:/data/rsf \
+            --bind ./my_results:/data/results \
+            arcto.sif -r /data/rsf -o /data/results
 
     See all options:
-      singularity run hipcomp.sif --help
+        singularity run arcto.sif --help
 
 %labels
     Author cakunas
     Version 2.1
-    Description Ubuntu 24.04 container with ROCm + hip-compression-toolkit benchmarks
+    Description Ubuntu 24.04 container with ROCm + Arcto compression ssh toolkit benchmarks
