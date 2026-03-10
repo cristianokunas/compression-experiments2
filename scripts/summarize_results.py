@@ -43,21 +43,40 @@ def size_tier(filename):
     return "?"
 
 # ── Load one CSV ───────────────────────────────────────────────────────────────
+def _float(val):
+    try: return float(val)
+    except (ValueError, TypeError): return None
+
 def load_csv(path):
     rows = []
     with open(path) as f:
         for row in csv.DictReader(f):
             try:
+                size_bytes = float(row["FileSizeBytes"])
+                comp_gb    = _float(row["CompThroughputGBs"])
+                decomp_gb  = _float(row["DecompThroughputGBs"])
+
+                # Prefer stored times (new runs); fall back to deriving from throughput
+                comp_ms   = _float(row.get("CompTimeMs"))
+                decomp_ms = _float(row.get("DecompTimeMs"))
+                if comp_ms is None and comp_gb:
+                    comp_ms = size_bytes / (comp_gb * 1e9) * 1000
+                if decomp_ms is None and decomp_gb:
+                    decomp_ms = size_bytes / (decomp_gb * 1e9) * 1000
+
                 rows.append({
-                    "algo":   row["Algorithm"],
-                    "file":   row["TestFile"],
-                    "size_mb":float(row["FileSizeMB"]),
-                    "chunk":  int(row["ChunkSize"]),
-                    "ratio":  float(row["CompressionRatio"]),
-                    "comp":   float(row["CompThroughputGBs"]),
-                    "decomp": float(row["DecompThroughputGBs"]),
-                    "dtype":  data_type(row["TestFile"]),
-                    "tier":   size_tier(row["TestFile"]),
+                    "algo":      row["Algorithm"],
+                    "file":      row["TestFile"],
+                    "size_mb":   float(row["FileSizeMB"]),
+                    "size_bytes":size_bytes,
+                    "chunk":     int(row["ChunkSize"]),
+                    "ratio":     float(row["CompressionRatio"]),
+                    "comp":      comp_gb,
+                    "decomp":    decomp_gb,
+                    "comp_ms":   comp_ms,
+                    "decomp_ms": decomp_ms,
+                    "dtype":     data_type(row["TestFile"]),
+                    "tier":      size_tier(row["TestFile"]),
                 })
             except (ValueError, KeyError):
                 pass
@@ -70,18 +89,31 @@ def print_algo_summary(rows, title="Per-algorithm summary (all data types)"):
     for r in rows:
         by_algo[r["algo"]].append(r)
 
-    fmt = f"  {{:<12}} {{:>10}} {{:>14}} {{:>14}}  {{:>6}}"
-    print(fmt.format("Algorithm", "Ratio", "Comp GB/s", "Decomp GB/s", "N"))
-    print("  " + "─"*58)
+    fmt = f"  {{:<12}} {{:>10}} {{:>14}} {{:>14}} {{:>12}} {{:>12}}  {{:>5}}"
+    print(fmt.format("Algorithm", "Ratio", "Comp GB/s", "Decomp GB/s",
+                     "Comp ms", "Decomp ms", "N"))
+    print("  " + "─"*78)
     for algo in ("lz4", "snappy", "cascaded"):
         if algo not in by_algo:
             continue
         data = by_algo[algo]
         avg_ratio  = sum(r["ratio"]  for r in data) / len(data)
-        avg_comp   = sum(r["comp"]   for r in data) / len(data)
-        avg_decomp = sum(r["decomp"] for r in data) / len(data)
-        print(fmt.format(algo, f"{avg_ratio:.2f}x",
-                         f"{avg_comp:.2f}", f"{avg_decomp:.2f}", len(data)))
+        comp_vals  = [r["comp"]      for r in data if r["comp"]      is not None]
+        decomp_vals= [r["decomp"]    for r in data if r["decomp"]    is not None]
+        ctime_vals = [r["comp_ms"]   for r in data if r["comp_ms"]   is not None]
+        dtime_vals = [r["decomp_ms"] for r in data if r["decomp_ms"] is not None]
+        avg_comp   = sum(comp_vals)   / len(comp_vals)   if comp_vals   else None
+        avg_decomp = sum(decomp_vals) / len(decomp_vals) if decomp_vals else None
+        avg_ctime  = sum(ctime_vals)  / len(ctime_vals)  if ctime_vals  else None
+        avg_dtime  = sum(dtime_vals)  / len(dtime_vals)  if dtime_vals  else None
+        print(fmt.format(
+            algo, f"{avg_ratio:.2f}x",
+            f"{avg_comp:.2f}"   if avg_comp   is not None else "N/A",
+            f"{avg_decomp:.2f}" if avg_decomp is not None else "N/A",
+            f"{avg_ctime:.1f}"  if avg_ctime  is not None else "N/A",
+            f"{avg_dtime:.1f}"  if avg_dtime  is not None else "N/A",
+            len(data),
+        ))
     print()
 
 # ── TTI-only table ─────────────────────────────────────────────────────────────
@@ -92,9 +124,10 @@ def print_tti_table(rows):
         return
 
     print(sub("TTI (real seismic data) — by size tier"))
-    fmt = f"  {{:<12}} {{:<10}} {{:>10}} {{:>14}} {{:>14}}"
-    print(fmt.format("Algorithm", "Tier", "Ratio", "Comp GB/s", "Decomp GB/s"))
-    print("  " + "─"*58)
+    fmt = f"  {{:<12}} {{:<10}} {{:>8}} {{:>12}} {{:>12}} {{:>10}} {{:>10}}"
+    print(fmt.format("Algorithm", "Tier", "Ratio",
+                     "Comp GB/s", "Decomp GB/s", "Comp ms", "Decomp ms"))
+    print("  " + "─"*76)
 
     tier_order = ["small", "medium", "large", "xlarge"]
     for algo in ("lz4", "snappy", "cascaded"):
@@ -103,8 +136,10 @@ def print_tti_table(rows):
             if not match:
                 continue
             r = match[0]
+            cms = f"{r['comp_ms']:.1f}"   if r["comp_ms"]   is not None else "N/A"
+            dms = f"{r['decomp_ms']:.1f}" if r["decomp_ms"] is not None else "N/A"
             print(fmt.format(algo, tier, f"{r['ratio']:.2f}x",
-                             f"{r['comp']:.2f}", f"{r['decomp']:.2f}"))
+                             f"{r['comp']:.2f}", f"{r['decomp']:.2f}", cms, dms))
         print()
 
 # ── Cross-experiment comparison (TTI large only) ───────────────────────────────
