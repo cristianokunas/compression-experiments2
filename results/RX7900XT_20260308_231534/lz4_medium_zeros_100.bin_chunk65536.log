@@ -1,2 +1,0 @@
-Files,Duplicate data,Size in MB,Pages,Avg page size in KB,Max page size in KB,Ucompressed size in bytes,Compressed size in bytes,Compression ratio,Compression throughput (uncompressed) in GB/s,Decompression throughput (uncompressed) in GB/s
-1,0,104.858,1600,65.536,65.536,104857600,427200,245.45,102.91,398.18
