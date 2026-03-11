@@ -5,7 +5,7 @@ From: ubuntu:24.04
     # GPU architecture: gfx942 (MI300X), gfx90a (MI210), gfx906 (MI50), gfx1100 (RX 7900 XT)
     GPU_ARCH=gfx942
     # Git branch to build from
-    BRANCH=metrics
+    BRANCH=devel
 
 %post
     # Create standard bind mount points for host data
