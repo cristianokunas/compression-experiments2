@@ -5,7 +5,7 @@ From: ubuntu:24.04
     # GPU architecture: gfx942 (MI300X), gfx90a (MI210), gfx906 (MI50), gfx1100 (RX 7900 XT)
     GPU_ARCH=gfx942
     # Git branch to build from
-    BRANCH=devel
+    BRANCH=metrics
 
 %post
     # Create standard bind mount points for host data
@@ -116,4 +116,4 @@ From: ubuntu:24.04
 %labels
     Author cakunas
     Version 2.1
-    Description Ubuntu 24.04 container with ROCm + Arcto compression ssh toolkit benchmarks
+    Description Ubuntu 24.04 container with ROCm + Arcto compression toolkit benchmarks

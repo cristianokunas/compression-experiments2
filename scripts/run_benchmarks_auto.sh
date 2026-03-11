@@ -222,7 +222,7 @@ RESULTS_CSV="$EXPERIMENT_DIR/results.csv"
 
 # Write CSV header
 cat > "$RESULTS_CSV" << EOF
-Algorithm,TestFile,FileSizeBytes,FileSizeMB,ChunkSize,CompressionRatio,CompThroughputGBs,DecompThroughputGBs,CompTimeMs,DecompTimeMs,Platform,GPU,GPUArch,EnvLabel,Iterations,Warmup,Timestamp
+Algorithm,TestFile,FileSizeBytes,FileSizeMB,ChunkSize,CompressionRatio,CompThroughputGBs,DecompThroughputGBs,CompTimeMs,DecompTimeMs,TransferH2DMs,TransferD2HMs,TotalTimeMs,AvgChunkTimeMs,NodeName,GPU,GPUArch,EnvLabel,Iterations,Warmup,Timestamp
 EOF
 
 # Save experiment metadata
@@ -321,37 +321,34 @@ for algo in $ALGORITHMS; do
                     > "$temp_output" 2>&1; then
                 
                 # Parse CSV output
-                # Expected format: Files,Duplicate,SizeMB,Pages,AvgPage,MaxPage,Uncompressed,Compressed,Ratio,CompGB,DecompGB
+                # Format: Files,Dup,SizeMB,Pages,AvgPage,MaxPage,Uncompressed,Compressed,
+                #         Ratio,CompGB,DecompGB,CompMs,DecompMs,H2DMs,D2HMs,TotalMs,AvgChunkMs
                 result_line=$(tail -n 1 "$temp_output" 2>/dev/null)
-                
+
                 if [[ -n "$result_line" && "$result_line" != *"Files"* && "$result_line" != *"file"* ]]; then
                     IFS=',' read -ra fields <<< "$result_line"
-                    
+
                     comp_ratio="${fields[8]:-N/A}"
                     comp_throughput="${fields[9]:-N/A}"
                     decomp_throughput="${fields[10]:-N/A}"
+                    comp_time_ms="${fields[11]:-N/A}"
+                    decomp_time_ms="${fields[12]:-N/A}"
+                    transfer_h2d="${fields[13]:-N/A}"
+                    transfer_d2h="${fields[14]:-N/A}"
+                    total_time_ms="${fields[15]:-N/A}"
+                    avg_chunk_ms="${fields[16]:-N/A}"
 
-                    # Average time per iteration derived from throughput: time(ms) = bytes / (GB/s * 1e9) * 1000
-                    comp_time_ms=$(awk "BEGIN {
-                        t=\"$comp_throughput\"; s=\"$testfile_size\"
-                        if (t+0 > 0) printf \"%.3f\", s / (t * 1e9) * 1000; else print \"N/A\"
-                    }")
-                    decomp_time_ms=$(awk "BEGIN {
-                        t=\"$decomp_throughput\"; s=\"$testfile_size\"
-                        if (t+0 > 0) printf \"%.3f\", s / (t * 1e9) * 1000; else print \"N/A\"
-                    }")
+                    echo "$algo,$testfile_name,$testfile_size,$testfile_mb,$chunk_size,$comp_ratio,$comp_throughput,$decomp_throughput,$comp_time_ms,$decomp_time_ms,$transfer_h2d,$transfer_d2h,$total_time_ms,$avg_chunk_ms,$(hostname),$GPU_NAME,$GPU_ARCH,$ENV_LABEL,$ITERATIONS,$WARMUP,$TIMESTAMP" >> "$RESULTS_CSV"
 
-                    echo "$algo,$testfile_name,$testfile_size,$testfile_mb,$chunk_size,$comp_ratio,$comp_throughput,$decomp_throughput,$comp_time_ms,$decomp_time_ms,$PLATFORM,$GPU_NAME,$GPU_ARCH,$ENV_LABEL,$ITERATIONS,$WARMUP,$TIMESTAMP" >> "$RESULTS_CSV"
-
-                    print_info "  Ratio: ${comp_ratio}x | Comp: ${comp_throughput} GB/s (${comp_time_ms} ms) | Decomp: ${decomp_throughput} GB/s (${decomp_time_ms} ms)"
+                    print_info "  Ratio: ${comp_ratio}x | Comp: ${comp_throughput} GB/s (${comp_time_ms} ms) | Decomp: ${decomp_throughput} GB/s (${decomp_time_ms} ms) | Transfer: H2D=${transfer_h2d}ms D2H=${transfer_d2h}ms"
                 else
                     print_warn "  Could not parse CSV output"
-                    echo "$algo,$testfile_name,$testfile_size,$testfile_mb,$chunk_size,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,$PLATFORM,$GPU_NAME,$GPU_ARCH,$ENV_LABEL,$ITERATIONS,$WARMUP,$TIMESTAMP" >> "$RESULTS_CSV"
+                    echo "$algo,$testfile_name,$testfile_size,$testfile_mb,$chunk_size,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,$(hostname),$GPU_NAME,$GPU_ARCH,$ENV_LABEL,$ITERATIONS,$WARMUP,$TIMESTAMP" >> "$RESULTS_CSV"
                     failed_tests=$((failed_tests + 1))
                 fi
             else
                 print_warn "  Benchmark failed or timed out"
-                echo "$algo,$testfile_name,$testfile_size,$testfile_mb,$chunk_size,FAILED,FAILED,FAILED,FAILED,FAILED,$PLATFORM,$GPU_NAME,$GPU_ARCH,$ENV_LABEL,$ITERATIONS,$WARMUP,$TIMESTAMP" >> "$RESULTS_CSV"
+                echo "$algo,$testfile_name,$testfile_size,$testfile_mb,$chunk_size,FAILED,FAILED,FAILED,FAILED,FAILED,FAILED,FAILED,FAILED,FAILED,$(hostname),$GPU_NAME,$GPU_ARCH,$ENV_LABEL,$ITERATIONS,$WARMUP,$TIMESTAMP" >> "$RESULTS_CSV"
                 failed_tests=$((failed_tests + 1))
             fi
             
