@@ -26,6 +26,16 @@ print_info()  { echo -e "${GREEN}[INFO]${NC} $1"; }
 print_warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
 print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
+# Auto-detect singularity or apptainer (apptainer is the upstream successor)
+if command -v singularity &>/dev/null; then
+    CONTAINER_RUNTIME="singularity"
+elif command -v apptainer &>/dev/null; then
+    CONTAINER_RUNTIME="apptainer"
+else
+    echo -e "${RED}[ERROR]${NC} Neither singularity nor apptainer found."
+    exit 1
+fi
+
 # -------------------- Help --------------------
 show_help() {
     cat << 'EOF'
@@ -76,7 +86,7 @@ SIF_IMAGE="$1"
 shift
 
 if [ "$1" = "--help-benchmark" ]; then
-    singularity run --rocm "$SIF_IMAGE" --help
+    $CONTAINER_RUNTIME run --rocm "$SIF_IMAGE" --help
     exit 0
 fi
 
@@ -151,7 +161,7 @@ echo ""
 print_info "Starting benchmarks..."
 echo ""
 
-singularity run --rocm \
+$CONTAINER_RUNTIME run --rocm \
     "${BIND_ARGS[@]}" \
     "$SIF_IMAGE" \
     -r /data/rsf \

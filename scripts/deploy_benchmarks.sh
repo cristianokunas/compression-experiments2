@@ -35,6 +35,15 @@ print_error()  { echo -e "${RED}[ERROR]${NC} $1"; }
 print_header() { echo -e "${BLUE}${BOLD}=== $1 ===${NC}"; }
 print_step()   { echo -e "${CYAN}[STEP]${NC} $1"; }
 
+# Auto-detect singularity or apptainer (apptainer is the upstream successor)
+if command -v singularity &>/dev/null; then
+    CONTAINER_RUNTIME="singularity"
+elif command -v apptainer &>/dev/null; then
+    CONTAINER_RUNTIME="apptainer"
+else
+    CONTAINER_RUNTIME="singularity"  # defer error to individual commands
+fi
+
 # ==================== Environment Definitions ====================
 # Configure these for your clusters
 # Format: ENV_NAME|GPU_ARCH|SSH_HOST|REMOTE_WORKDIR|RSF_DIR|NOTES
@@ -208,9 +217,9 @@ cmd_build() {
         print_step "Building image for $env_name ($arch)..."
         
         if [ "$DRY_RUN" = "true" ]; then
-            echo "  [DRY-RUN] singularity build --build-arg GPU_ARCH=$arch $sif_file $def_file"
+            echo "  [DRY-RUN] $CONTAINER_RUNTIME build --build-arg GPU_ARCH=$arch $sif_file $def_file"
         else
-            singularity build --build-arg GPU_ARCH="$arch" "$sif_file" "$def_file"
+            $CONTAINER_RUNTIME build --build-arg GPU_ARCH="$arch" "$sif_file" "$def_file"
         fi
         
         print_info "Built: $sif_file"
@@ -271,8 +280,8 @@ cmd_run() {
         
         print_step "Running on $env_name ($host)..."
         
-        # Build the run command
-        local run_cmd="cd $workdir && singularity run"
+        # Build the run command — detect runtime on the remote host
+        local run_cmd="cd $workdir && RUNTIME=\$(command -v singularity || command -v apptainer) && \$RUNTIME run"
         
         # Bind mounts
         run_cmd="$run_cmd --bind $workdir/testdata:/opt/arcto/testdata"

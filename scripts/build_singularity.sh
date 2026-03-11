@@ -25,6 +25,18 @@ print_info()  { echo -e "${GREEN}[INFO]${NC} $1"; }
 print_warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
 print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
+# Auto-detect singularity or apptainer (apptainer is the upstream successor)
+detect_container_runtime() {
+    if command -v singularity &>/dev/null; then
+        echo "singularity"
+    elif command -v apptainer &>/dev/null; then
+        echo "apptainer"
+    else
+        echo ""
+    fi
+}
+CONTAINER_RUNTIME=$(detect_container_runtime)
+
 # -------------------- Defaults --------------------
 GPU_ARCH="gfx942"
 BRANCH="devel"
@@ -127,11 +139,13 @@ if [ ! -f "$DEF_FILE" ]; then
     exit 1
 fi
 
-if ! command -v singularity &> /dev/null; then
-    print_error "Singularity not found. Install it first:"
-    print_info "  https://docs.sylabs.io/guides/latest/user-guide/quick_start.html"
+if [ -z "$CONTAINER_RUNTIME" ]; then
+    print_error "Neither singularity nor apptainer found. Install one first:"
+    print_info "  Apptainer: https://apptainer.org/docs/admin/main/installation.html"
+    print_info "  Singularity: https://docs.sylabs.io/guides/latest/user-guide/quick_start.html"
     exit 1
 fi
+print_info "Container runtime: $CONTAINER_RUNTIME"
 
 if [ -f "$OUTPUT_NAME" ] && [ "$FORCE" != "true" ]; then
     print_error "Image already exists: $OUTPUT_NAME"
@@ -188,16 +202,16 @@ esac
 BUILD_CMD=()
 case "$BUILD_MODE" in
     root)
-        BUILD_CMD=(singularity build)
+        BUILD_CMD=("$CONTAINER_RUNTIME" build)
         ;;
     sudo)
-        BUILD_CMD=(sudo singularity build)
+        BUILD_CMD=(sudo "$CONTAINER_RUNTIME" build)
         ;;
     sudo-g5k)
-        BUILD_CMD=(sudo-g5k singularity build)
+        BUILD_CMD=(sudo-g5k "$CONTAINER_RUNTIME" build)
         ;;
     fakeroot)
-        BUILD_CMD=(singularity build --fakeroot)
+        BUILD_CMD=("$CONTAINER_RUNTIME" build --fakeroot)
         ;;
 esac
 
@@ -221,7 +235,7 @@ if [ -f "$OUTPUT_NAME" ]; then
     print_info "Image: $OUTPUT_NAME ($IMAGE_SIZE)"
     echo ""
     print_info "Quick test:"
-    print_info "  singularity run --rocm $OUTPUT_NAME --help"
+    print_info "  $CONTAINER_RUNTIME run --rocm $OUTPUT_NAME --help"
     echo ""
     print_info "Run benchmarks:"
     print_info "  ./scripts/run_singularity.sh $OUTPUT_NAME /path/to/rsf/run"
