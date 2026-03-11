@@ -222,7 +222,7 @@ RESULTS_CSV="$EXPERIMENT_DIR/results.csv"
 
 # Write CSV header
 cat > "$RESULTS_CSV" << EOF
-Algorithm,TestFile,FileSizeBytes,FileSizeMB,ChunkSize,CompressionRatio,CompThroughputGBs,DecompThroughputGBs,CompTimeMs,DecompTimeMs,TransferH2DMs,TransferD2HMs,TotalTimeMs,AvgChunkTimeMs,NodeName,GPU,GPUArch,EnvLabel,Iterations,Warmup,Timestamp
+Algorithm,TestFile,FileSizeBytes,FileSizeMB,ChunkSize,CompressionRatio,CompThroughputGBs,DecompThroughputGBs,CompTimeMs,DecompTimeMs,TransferH2DMs,TransferD2HMs,TotalTimeMs,AvgChunkTimeMs,CompThroughputStdDev,DecompThroughputStdDev,CompTimeStdDevMs,DecompTimeStdDevMs,NodeName,GPU,GPUArch,EnvLabel,Iterations,Warmup,Timestamp
 EOF
 
 # Save experiment metadata
@@ -337,18 +337,22 @@ for algo in $ALGORITHMS; do
                     transfer_d2h="${fields[14]:-N/A}"
                     total_time_ms="${fields[15]:-N/A}"
                     avg_chunk_ms="${fields[16]:-N/A}"
+                    comp_std="${fields[17]:-N/A}"
+                    decomp_std="${fields[18]:-N/A}"
+                    comp_time_std="${fields[19]:-N/A}"
+                    decomp_time_std="${fields[20]:-N/A}"
 
-                    echo "$algo,$testfile_name,$testfile_size,$testfile_mb,$chunk_size,$comp_ratio,$comp_throughput,$decomp_throughput,$comp_time_ms,$decomp_time_ms,$transfer_h2d,$transfer_d2h,$total_time_ms,$avg_chunk_ms,$(hostname),$GPU_NAME,$GPU_ARCH,$ENV_LABEL,$ITERATIONS,$WARMUP,$TIMESTAMP" >> "$RESULTS_CSV"
+                    echo "$algo,$testfile_name,$testfile_size,$testfile_mb,$chunk_size,$comp_ratio,$comp_throughput,$decomp_throughput,$comp_time_ms,$decomp_time_ms,$transfer_h2d,$transfer_d2h,$total_time_ms,$avg_chunk_ms,$comp_std,$decomp_std,$comp_time_std,$decomp_time_std,$(hostname),$GPU_NAME,$GPU_ARCH,$ENV_LABEL,$ITERATIONS,$WARMUP,$TIMESTAMP" >> "$RESULTS_CSV"
 
-                    print_info "  Ratio: ${comp_ratio}x | Comp: ${comp_throughput} GB/s (${comp_time_ms} ms) | Decomp: ${decomp_throughput} GB/s (${decomp_time_ms} ms) | Transfer: H2D=${transfer_h2d}ms D2H=${transfer_d2h}ms"
+                    print_info "  Ratio: ${comp_ratio}x | Comp: ${comp_throughput} GB/s ±${comp_std} (${comp_time_ms}±${comp_time_std} ms) | Decomp: ${decomp_throughput} GB/s ±${decomp_std} (${decomp_time_ms}±${decomp_time_std} ms)"
                 else
                     print_warn "  Could not parse CSV output"
-                    echo "$algo,$testfile_name,$testfile_size,$testfile_mb,$chunk_size,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,$(hostname),$GPU_NAME,$GPU_ARCH,$ENV_LABEL,$ITERATIONS,$WARMUP,$TIMESTAMP" >> "$RESULTS_CSV"
+                    echo "$algo,$testfile_name,$testfile_size,$testfile_mb,$chunk_size,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,PARSE_ERROR,$(hostname),$GPU_NAME,$GPU_ARCH,$ENV_LABEL,$ITERATIONS,$WARMUP,$TIMESTAMP" >> "$RESULTS_CSV"
                     failed_tests=$((failed_tests + 1))
                 fi
             else
                 print_warn "  Benchmark failed or timed out"
-                echo "$algo,$testfile_name,$testfile_size,$testfile_mb,$chunk_size,FAILED,FAILED,FAILED,FAILED,FAILED,FAILED,FAILED,FAILED,FAILED,$(hostname),$GPU_NAME,$GPU_ARCH,$ENV_LABEL,$ITERATIONS,$WARMUP,$TIMESTAMP" >> "$RESULTS_CSV"
+                echo "$algo,$testfile_name,$testfile_size,$testfile_mb,$chunk_size,FAILED,FAILED,FAILED,FAILED,FAILED,FAILED,FAILED,FAILED,FAILED,FAILED,FAILED,FAILED,FAILED,$(hostname),$GPU_NAME,$GPU_ARCH,$ENV_LABEL,$ITERATIONS,$WARMUP,$TIMESTAMP" >> "$RESULTS_CSV"
                 failed_tests=$((failed_tests + 1))
             fi
             

@@ -79,6 +79,10 @@ def load_csv(path):
                     "d2h_ms":       _float(row.get("TransferD2HMs")),
                     "total_ms":     _float(row.get("TotalTimeMs")),
                     "chunk_ms":     _float(row.get("AvgChunkTimeMs")),
+                    "comp_std":     _float(row.get("CompThroughputStdDev")),
+                    "decomp_std":   _float(row.get("DecompThroughputStdDev")),
+                    "comp_time_std":   _float(row.get("CompTimeStdDevMs")),
+                    "decomp_time_std": _float(row.get("DecompTimeStdDevMs")),
                     "node":         row.get("NodeName", ""),
                     "dtype":        data_type(row["TestFile"]),
                     "tier":         size_tier(row["TestFile"]),
@@ -94,33 +98,38 @@ def print_algo_summary(rows, title="Per-algorithm summary (all data types)"):
     for r in rows:
         by_algo[r["algo"]].append(r)
 
-    fmt = f"  {{:<12}} {{:>10}} {{:>14}} {{:>14}} {{:>10}} {{:>10}} {{:>10}} {{:>10}}  {{:>5}}"
-    print(fmt.format("Algorithm", "Ratio", "Comp GB/s", "Decomp GB/s",
-                     "Comp ms", "Decomp ms", "H2D ms", "Total ms", "N"))
-    print("  " + "─"*100)
+    fmt = f"  {{:<12}} {{:>10}} {{:>16}} {{:>16}} {{:>14}} {{:>10}} {{:>10}}  {{:>5}}"
+    print(fmt.format("Algorithm", "Ratio", "Comp GB/s ±σ", "Decomp GB/s ±σ",
+                     "Comp ms ±σ", "H2D ms", "Total ms", "N"))
+    print("  " + "─"*106)
     for algo in ("lz4", "snappy", "cascaded"):
         if algo not in by_algo:
             continue
         data = by_algo[algo]
-        avg_ratio   = sum(r["ratio"]  for r in data) / len(data)
-        comp_vals   = [r["comp"]      for r in data if r["comp"]      is not None]
-        decomp_vals = [r["decomp"]    for r in data if r["decomp"]    is not None]
-        ctime_vals  = [r["comp_ms"]   for r in data if r["comp_ms"]   is not None]
-        dtime_vals  = [r["decomp_ms"] for r in data if r["decomp_ms"] is not None]
-        h2d_vals    = [r["h2d_ms"]    for r in data if r["h2d_ms"]    is not None]
-        total_vals  = [r["total_ms"]  for r in data if r["total_ms"]  is not None]
-        avg_comp    = sum(comp_vals)   / len(comp_vals)   if comp_vals   else None
-        avg_decomp  = sum(decomp_vals) / len(decomp_vals) if decomp_vals else None
-        avg_ctime   = sum(ctime_vals)  / len(ctime_vals)  if ctime_vals  else None
-        avg_dtime   = sum(dtime_vals)  / len(dtime_vals)  if dtime_vals  else None
-        avg_h2d     = sum(h2d_vals)    / len(h2d_vals)    if h2d_vals    else None
-        avg_total   = sum(total_vals)  / len(total_vals)  if total_vals  else None
+        avg_ratio        = sum(r["ratio"]  for r in data) / len(data)
+        comp_vals        = [r["comp"]           for r in data if r["comp"]           is not None]
+        decomp_vals      = [r["decomp"]         for r in data if r["decomp"]         is not None]
+        ctime_vals       = [r["comp_ms"]        for r in data if r["comp_ms"]        is not None]
+        h2d_vals         = [r["h2d_ms"]         for r in data if r["h2d_ms"]         is not None]
+        total_vals       = [r["total_ms"]       for r in data if r["total_ms"]       is not None]
+        std_c_vals       = [r["comp_std"]       for r in data if r["comp_std"]       is not None]
+        std_d_vals       = [r["decomp_std"]     for r in data if r["decomp_std"]     is not None]
+        std_ct_vals      = [r["comp_time_std"]  for r in data if r["comp_time_std"]  is not None]
+        avg_comp         = sum(comp_vals)        / len(comp_vals)        if comp_vals        else None
+        avg_decomp       = sum(decomp_vals)      / len(decomp_vals)      if decomp_vals      else None
+        avg_ctime        = sum(ctime_vals)       / len(ctime_vals)       if ctime_vals       else None
+        avg_h2d          = sum(h2d_vals)         / len(h2d_vals)         if h2d_vals         else None
+        avg_total        = sum(total_vals)       / len(total_vals)       if total_vals       else None
+        avg_std_c        = sum(std_c_vals)       / len(std_c_vals)       if std_c_vals       else None
+        avg_std_d        = sum(std_d_vals)       / len(std_d_vals)       if std_d_vals       else None
+        avg_std_ct       = sum(std_ct_vals)      / len(std_ct_vals)      if std_ct_vals      else None
+        comp_str   = f"{avg_comp:.2f}±{avg_std_c:.2f}"   if avg_comp   is not None and avg_std_c  is not None else (f"{avg_comp:.2f}" if avg_comp else "N/A")
+        decomp_str = f"{avg_decomp:.2f}±{avg_std_d:.2f}" if avg_decomp is not None and avg_std_d is not None else (f"{avg_decomp:.2f}" if avg_decomp else "N/A")
+        ctime_str  = f"{avg_ctime:.1f}±{avg_std_ct:.1f}" if avg_ctime  is not None and avg_std_ct is not None else (f"{avg_ctime:.1f}" if avg_ctime else "N/A")
         print(fmt.format(
             algo, f"{avg_ratio:.2f}x",
-            f"{avg_comp:.2f}"   if avg_comp   is not None else "N/A",
-            f"{avg_decomp:.2f}" if avg_decomp is not None else "N/A",
-            f"{avg_ctime:.1f}"  if avg_ctime  is not None else "N/A",
-            f"{avg_dtime:.1f}"  if avg_dtime  is not None else "N/A",
+            comp_str, decomp_str,
+            ctime_str,
             f"{avg_h2d:.1f}"    if avg_h2d    is not None else "N/A",
             f"{avg_total:.1f}"  if avg_total  is not None else "N/A",
             len(data),
