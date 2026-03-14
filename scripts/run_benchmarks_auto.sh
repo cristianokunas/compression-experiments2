@@ -403,4 +403,28 @@ EOF
 
 print_info "Full results: $RESULTS_CSV"
 print_info "Experiment:   $EXPERIMENT_DIR"
+
+# -------------------- Cleanup synthetic testdata on Grid5000 --------------------
+# Grid5000 has a 25GB storage quota; remove large synthetic files to avoid exceeding it.
+# Real (TTI) data is kept since it's harder to regenerate.
+if command -v sudo-g5k &> /dev/null || hostname | grep -qE '\.grid5000\.fr$'; then
+    print_header "Grid5000 Cleanup"
+    cleaned_bytes=0
+    for pattern in "large_zeros_*.bin" "large_random_*.bin" "large_binary_*.bin" \
+                   "xlarge_zeros_*.bin" "xlarge_random_*.bin" "xlarge_binary_*.bin"; do
+        for f in "$TESTDATA_DIR"/$pattern; do
+            [ -f "$f" ] || continue
+            fsize=$(stat --format='%s' "$f" 2>/dev/null || stat -f '%z' "$f" 2>/dev/null || echo 0)
+            cleaned_bytes=$((cleaned_bytes + fsize))
+            rm -f "$f"
+            print_info "Removed: $(basename "$f") ($(echo "scale=0; $fsize / 1048576" | bc) MB)"
+        done
+    done
+    if [ "$cleaned_bytes" -gt 0 ]; then
+        print_info "Freed $(echo "scale=1; $cleaned_bytes / 1073741824" | bc) GB of synthetic testdata"
+    else
+        print_info "No large synthetic files to clean up"
+    fi
+fi
+
 print_info "Done!"
